@@ -1,6 +1,6 @@
 {
     "name": "@sklinet/strapi-plugin-bold-title-editor",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "A bold title/text editor to accent certain parts",
     "keywords": [],
     "license": "MIT",
