@@ -8,7 +8,7 @@ import { parse, NodeType } from 'node-html-parser';
 
 interface InputProps {
     name: string;
-    value?: string;
+    value?: string | null;
     onChange: (e: any) => void;
     attribute: Record<any, any>;
     required?: boolean;
@@ -22,20 +22,24 @@ interface InputProps {
 const converter = new showdown.Converter();
 converter.setOption('simpleLineBreaks', true);
 
-const ContentEditable = styled(ReactContentEditable)`
-    flex: 1;
+const ContentEditable = styled(Flex)`
     width: 100%;
-    font-size: ${({ theme }) => theme.fontSizes[2]};
-    line-height: ${({ theme }) => theme.lineHeights[2]};
-    border-radius: ${({ theme }) => theme.borderRadius};
-    border: 1px solid ${({ theme }) => theme.colors.neutral200};
-    background: ${({ theme }) => theme.colors.neutral0};
-    padding: ${({ theme }) => `${theme.spaces[2]} ${theme.spaces[4]}`};
-    color: ${({ theme }) => theme.colors.neutral800};
-    ${inputFocusStyle()}
+    flex: 1;
 
-    b, strong {
-        font-weight: ${({ theme }) => theme.fontWeights.bold};
+    & > * {
+        width: 100%;
+        font-size: ${({ theme }) => theme.fontSizes[2]};
+        line-height: ${({ theme }) => theme.lineHeights[2]};
+        border-radius: ${({ theme }) => theme.borderRadius};
+        border: 1px solid ${({ theme }) => theme.colors.neutral200};
+        background: ${({ theme }) => theme.colors.neutral0};
+        padding: ${({ theme }) => `${theme.spaces[2]} ${theme.spaces[4]}`};
+        color: ${({ theme }) => theme.colors.neutral800};
+        ${inputFocusStyle()}
+
+        b, strong {
+            font-weight: ${({ theme }) => theme.fontWeights.bold};
+        }
     }
 `;
 
@@ -140,7 +144,7 @@ const Input = ({
     placeholder,
     hint,
 }: InputProps) => {
-    const ref = useRef();
+    const ref = useRef<any>();
     const [preview, setPreview] = useState(false);
 
     const markdown = !!(attribute.options && attribute.options.output === 'markdown');
@@ -201,15 +205,16 @@ const Input = ({
                 </Flex>
             )}
             <Flex gap={2}>
-                <ContentEditable
-                    // @ts-ignore
-                    innerRef={ref}
-                    html={getHtml(value, markdown)}
-                    onPaste={handleOnPaste}
-                    onChange={handleOnChange}
-                    onKeyDown={handleOnKeyDown}
-                    disabled={_disabled}
-                />
+                <ContentEditable>
+                    <ReactContentEditable
+                        innerRef={ref}
+                        html={getHtml(value, markdown)}
+                        onPaste={handleOnPaste}
+                        onChange={handleOnChange}
+                        onKeyDown={handleOnKeyDown}
+                        disabled={_disabled}
+                    />
+                </ContentEditable>
                 <IconButton
                     label="More actions"
                     withTooltip={false}
