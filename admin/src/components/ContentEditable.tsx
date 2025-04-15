@@ -46,7 +46,6 @@ const ContentEditable = forwardRef<HTMLDivElement, Props>((props: Props, ref) =>
   useEffect(() => {
     const el = divRef.current;
     if (el && html !== lastHtml) {
-      console.log('here');
       el.innerHTML = html;
       setLastHtml(html);
     }
