@@ -17,7 +17,7 @@ export default {
             },
             intlDescription: {
                 id: getTranslation('field.description'),
-                defaultMessage: 'A bold title/text editor to accent certain parts',
+                defaultMessage: 'A bold title/text editor to accent certain parts and insert non-breaking spaces',
             },
             options: {
                 advanced: [

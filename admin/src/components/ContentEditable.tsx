@@ -1,6 +1,8 @@
 import React, { forwardRef, SyntheticEvent, useEffect, useRef } from 'react';
 import { parse, NodeType } from 'node-html-parser';
 
+export const NBSP = '\u00A0';
+
 type ParsedNode = { type: 'break' } | { type: 'text'; bold: boolean; text: string };
 
 const normalizeText = (text: string) => text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
@@ -84,6 +86,20 @@ const escapeHtml = (text: string) => {
 
 const onlyBreaks = (parsed: ParsedNode[]) => parsed.length > 0 && parsed.every((node) => node.type === 'break');
 
+const toPlainText = (parsed: ParsedNode[]) => {
+    return parsed.reduce((text: string, node: ParsedNode) => {
+        if (node.type === 'break') {
+            return `${text}\n`;
+        }
+
+        if (node.type === 'text') {
+            return text + node.text;
+        }
+
+        return text;
+    }, '');
+};
+
 const toMarkdown = (parsed: ParsedNode[], clear: boolean) => {
     return parsed.reduce((html: string, node: ParsedNode) => {
         if (node.type === 'break') {
@@ -120,7 +136,7 @@ const toHtml = (parsed: ParsedNode[], clear: boolean) => {
     }, '');
 };
 
-const normalizeHtmlValue = (html: string) => {
+export const normalizeHtmlValue = (html: string) => {
     const parsed = reduceParsed(parse(html ?? ''));
 
     if (onlyBreaks(parsed)) {
@@ -147,6 +163,18 @@ export const getPasteHtml = (html: string, plainText: string) => {
 
     return normalizeText(plainText).split('\n').map(escapeHtml).join('<br>');
 };
+
+export const getPlainTextFromHtml = (html: string) => {
+    const parsed = reduceParsed(parse(html ?? ''));
+
+    if (onlyBreaks(parsed)) {
+        return '';
+    }
+
+    return toPlainText(parsed);
+};
+
+export const htmlToClipboardHtml = (html: string) => html.replace(new RegExp(NBSP, 'g'), '&nbsp;');
 
 type ContentEditableEvent = React.SyntheticEvent<any, Event> & { target: { value: string } };
 type Modify<T, R> = Pick<T, Exclude<keyof T, keyof R>> & R;
