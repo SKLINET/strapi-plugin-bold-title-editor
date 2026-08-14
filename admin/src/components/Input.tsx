@@ -1,8 +1,17 @@
 import React, { useState, useRef } from 'react';
 import styled from 'styled-components';
+import { useIntl } from 'react-intl';
 import { Box, Flex, Typography, IconButton, inputFocusStyle } from '@strapi/design-system';
-import { Earth, Bold, Code, StrikeThrough, Cross } from '@strapi/icons';
-import ReactContentEditable, { getPasteHtml, getValueToUpdate } from './ContentEditable';
+import { Earth, Bold, Minus, Code, StrikeThrough, Cross } from '@strapi/icons';
+import ReactContentEditable, {
+    getPasteHtml,
+    getPlainTextFromHtml,
+    getValueToUpdate,
+    htmlToClipboardHtml,
+    NBSP,
+    normalizeHtmlValue,
+} from './ContentEditable';
+import { getTranslation } from '../utils/getTranslation';
 import showdown from 'showdown';
 
 interface InputProps {
@@ -31,6 +40,7 @@ const ContentEditable = styled(ReactContentEditable)`
     background: ${({ theme }) => theme.colors.neutral0};
     padding: ${({ theme }) => `${theme.spaces[2]} ${theme.spaces[4]}`};
     color: ${({ theme }) => theme.colors.neutral800};
+    white-space: pre-wrap;
     ${inputFocusStyle()}
 
     b, strong {
@@ -46,6 +56,15 @@ const Preview = styled.div`
     font-size: ${({ theme }) => theme.fontSizes[2]};
     line-height: ${({ theme }) => theme.lineHeights[1]};
     color: ${({ theme }) => theme.colors.neutral500};
+    white-space: pre-wrap;
+    word-break: break-all;
+    overflow-wrap: anywhere;
+`;
+
+const NbspMarker = styled.span`
+    background: ${({ theme }) => theme.colors.warning100};
+    border-radius: 2px;
+    padding: 0 1px;
 `;
 
 const executeCommand = (commandId: string, value?: string) => {
@@ -53,6 +72,76 @@ const executeCommand = (commandId: string, value?: string) => {
     // User agents cannot drop support for execCommand()
     // because so many services require support for it.
     document.execCommand(commandId, false, value);
+};
+
+const insertTextAtSelection = (element: HTMLDivElement | null, text: string) => {
+    if (!element) {
+        return;
+    }
+
+    element.focus();
+
+    if (document.queryCommandSupported?.('insertText') ?? true) {
+        document.execCommand('insertText', false, text);
+        return;
+    }
+
+    const selection = window.getSelection();
+    const range = selection?.getRangeAt(0);
+
+    if (!selection || !range) {
+        return;
+    }
+
+    range.deleteContents();
+    const textNode = document.createTextNode(text);
+    range.insertNode(textNode);
+    range.setStartAfter(textNode);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+};
+
+const getSelectionPayload = (element: HTMLDivElement | null) => {
+    const selection = window.getSelection();
+
+    if (!selection || selection.isCollapsed || !element) {
+        return null;
+    }
+
+    const range = selection.getRangeAt(0);
+
+    if (!element.contains(range.commonAncestorContainer)) {
+        return null;
+    }
+
+    const container = document.createElement('div');
+    container.appendChild(range.cloneContents());
+    const html = normalizeHtmlValue(container.innerHTML);
+
+    return {
+        html: htmlToClipboardHtml(html),
+        text: getPlainTextFromHtml(html),
+    };
+};
+
+const writeClipboardContent = (event: React.ClipboardEvent<HTMLDivElement>, html: string, text: string) => {
+    event.clipboardData.setData('text/plain', text);
+    event.clipboardData.setData('text/html', html);
+    event.preventDefault();
+};
+
+const renderCodePreview = (value: string) => {
+    const parts = value.split(/(\u00A0|&nbsp;)/gi);
+
+    return parts.map((part, index) => {
+        if (part === NBSP || part.toLowerCase() === '&nbsp;') {
+            return <NbspMarker key={`nbsp-${index}`}>·</NbspMarker>;
+        }
+
+        return <React.Fragment key={`text-${index}`}>{part}</React.Fragment>;
+    });
 };
 
 const getHtml = (value: any, markdown: any) => {
@@ -73,6 +162,7 @@ const Input = ({
 }: InputProps) => {
     const ref = useRef<HTMLDivElement | null>(null);
     const [preview, setPreview] = useState(false);
+    const { formatMessage } = useIntl();
 
     const markdown = !!(attribute.options && attribute.options.output === 'markdown');
 
@@ -81,7 +171,7 @@ const Input = ({
         onChange({ target: { name, value } });
     };
 
-    const handleOnPaste = (event: any) => {
+    const handleOnPaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
         event.preventDefault();
         const plainText = event.clipboardData.getData('text/plain') ?? '';
         const html = event.clipboardData.getData('text/html') ?? '';
@@ -89,6 +179,30 @@ const Input = ({
 
         executeCommand('insertHTML', pastedHtml);
         update(getValueToUpdate(ref.current?.innerHTML ?? '', markdown));
+    };
+
+    const handleOnCopy = (event: React.ClipboardEvent<HTMLDivElement>) => {
+        const payload = getSelectionPayload(ref.current);
+
+        if (!payload) {
+            return;
+        }
+
+        writeClipboardContent(event, payload.html, payload.text);
+    };
+
+    const handleOnCut = (event: React.ClipboardEvent<HTMLDivElement>) => {
+        const payload = getSelectionPayload(ref.current);
+
+        if (!payload) {
+            return;
+        }
+
+        writeClipboardContent(event, payload.html, payload.text);
+
+        if (document.queryCommandSupported?.('delete') ?? true) {
+            document.execCommand('delete');
+        }
     };
 
     const handleOnChange = (event: any) => {
@@ -137,28 +251,56 @@ const Input = ({
                     ref={ref}
                     html={getHtml(value, markdown)}
                     onPaste={handleOnPaste}
+                    onCopy={handleOnCopy}
+                    onCut={handleOnCut}
                     onChange={handleOnChange}
                     onKeyDown={handleOnKeyDown}
                     disabled={_disabled}
                 />
                 <IconButton
-                    label="More actions"
-                    withTooltip={false}
+                    label={formatMessage({
+                        id: getTranslation('action.bold'),
+                        defaultMessage: 'Bold',
+                    })}
                     onClick={() => executeCommand('bold')}
                     disabled={_disabled}
                 >
                     <Bold />
                 </IconButton>
-                <IconButton label="More actions" withTooltip={false} onClick={handleOnClear} disabled={_disabled}>
+                <IconButton
+                    label={formatMessage({
+                        id: getTranslation('action.insert-nbsp'),
+                        defaultMessage: 'Insert non-breaking space',
+                    })}
+                    onClick={() => insertTextAtSelection(ref.current, NBSP)}
+                    disabled={_disabled}
+                >
+                    <Minus />
+                </IconButton>
+                <IconButton
+                    label={formatMessage({
+                        id: getTranslation('action.clear-format'),
+                        defaultMessage: 'Clear formatting',
+                    })}
+                    onClick={handleOnClear}
+                    disabled={_disabled}
+                >
                     <StrikeThrough />
                 </IconButton>
-                <IconButton label="More actions" withTooltip={false} onClick={handleOnPreview} disabled={_disabled}>
+                <IconButton
+                    label={formatMessage({
+                        id: getTranslation('action.toggle-code'),
+                        defaultMessage: 'Show code',
+                    })}
+                    onClick={handleOnPreview}
+                    disabled={_disabled}
+                >
                     {preview ? <Cross /> : <Code />}
                 </IconButton>
             </Flex>
             {value && preview && (
                 <Box marginTop={2}>
-                    <Preview>{value}</Preview>
+                    <Preview>{renderCodePreview(value)}</Preview>
                 </Box>
             )}
             {(error || hint) && (

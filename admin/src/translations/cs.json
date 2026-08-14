@@ -1,5 +1,9 @@
 {
     "field.title": "Editor tučných nadpisů",
-    "field.description": "Editor tučného názvu/textu pro zvýraznění určitých částí",
-    "field.required-field": "Povinné pole"
+    "field.description": "Editor tučného názvu/textu pro zvýraznění určitých částí a vkládání nedělitelných mezer",
+    "field.required-field": "Povinné pole",
+    "action.bold": "Tučné písmo",
+    "action.insert-nbsp": "Vložit nedělitelnou mezeru",
+    "action.clear-format": "Odstranit formátování",
+    "action.toggle-code": "Zobrazit kód"
 }

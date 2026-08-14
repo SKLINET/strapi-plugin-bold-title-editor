@@ -1,5 +1,9 @@
 {
     "field.title": "Bold Title Editor",
-    "field.description": "A bold title/text editor to accent certain parts",
-    "field.required-field": "Required field"
+    "field.description": "A bold title/text editor to accent certain parts and insert non-breaking spaces",
+    "field.required-field": "Required field",
+    "action.bold": "Bold",
+    "action.insert-nbsp": "Insert non-breaking space",
+    "action.clear-format": "Clear formatting",
+    "action.toggle-code": "Show code"
 }
